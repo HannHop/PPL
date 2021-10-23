@@ -7,8 +7,12 @@ from PyQt5.QtWidgets import QApplication,\
     QStatusBar,\
     QToolBar,\
     QGridLayout,\
-    QFileDialog
+    QFileDialog, \
+    QVBoxLayout , \
+    QHBoxLayout, \
+    QLineEdit, QPlainTextEdit, QPushButton, QSpinBox
 from PyQt5.QtGui import QPixmap, QKeySequence
+from PyQt5.QtCore import Qt
 
 # super() function in Python makes class inheritance more manageable and extensible.
 # The function returns a temporary object that allows reference to a parent class by the keyword 'super'
@@ -23,6 +27,7 @@ class Window(QMainWindow):
         self.setGeometry(40, 40, 800, 800)
         self.createMenu()
         self.createTabs()
+        self.opened_txt = ''
         layout = QVBoxLayout(self)
 
     def open_file(self):
@@ -34,25 +39,63 @@ class Window(QMainWindow):
             # label = QLabel(widget)
             print("tried opening")
             pixmap = QPixmap(fileName)
+            resized_pixmap = pixmap.scaled(600, 400, Qt.KeepAspectRatio)
             # label.setPixmap(pixmap)
             # window.resize(pixmap.width(), pixmap.height())
-            picture.setPixmap(pixmap)
+            self.picture.setPixmap(resized_pixmap)
 
     def clear_notepad(self):
+        self.text.clear()
         print("clear notepad")
         return 'du'
 
     def open_text(self):
+        widget = self.tab_2
+        fileName, selectedFilter = QFileDialog.getOpenFileName(widget,
+                                                               "Choose a file", "", "TXT (*.txt);; Python (*.py)")
+        if fileName:
+            file=open(fileName)
+            content = file.read()
+            self.text.setPlainText(content)
+            self.opened_txt = fileName
+            file.close()
         return 'pa'
 
     def save_text(self):
+        if self.opened_txt:
+            content = self.text.toPlainText()
+            file = open(self.opened_txt, 'w')
+            file.write(content)
+            file.close()
+        else:
+            self.save_as()
+        print("save notepad")
         return 'bl'
 
     def save_as(self):
+        print("save as")
+        name, selectedFilter = QFileDialog.getSaveFileName(self, 'Save File')
+        file = open(name,'w')
+        content = self.text.toPlainText()
+        file.write(content)
+        file.close()
+        self.opened_txt = name
         return 'a'
 
     def clear_fields(self):
+        self.text_A.setText('')
+        self.text_B.setText('')
+        self.number_C.setValue(0)
         return 'da'
+
+    def change_ABC(self):
+        try:
+            A = int(self.text_A.text())
+            B = int(self.text_B.text())
+            C = int(self.number_C.value())
+            self.number_ABC.setText(str(A + B + C))
+        except(ValueError):
+            self.number_ABC.setText(self.text_A.text() + self.text_B.text() + self.number_C.text())
 
     def createMenu(self):
         menu = self.menuBar()
@@ -101,29 +144,71 @@ class Window(QMainWindow):
         field_menu.addAction(field_clear)
 
     def createTabs(self):
-        # Tworzenie widżetu posiadającego zakładki
+        # Making a widget containing tabs
         self.all_tabs = QTabWidget()
 
         # making separate widgets
+        # tab1:
         self.tab_1 = QWidget()
-        #self.tab_1.layout.add
-        self.picture = QLabel()
-        layout = QGridLayout(self)
-        # self.tab_1.layout.addWidget(self.picture)
-        self.tab_1.addWidget(self.picture)
+        self.picture = QLabel(self)
+        tab_1_layout = QHBoxLayout(self.tab_1)
+        tab_1_layout.addWidget(self.picture, 0, Qt.AlignLeft | Qt.AlignTop)
+        # layout = QGridLayout(self)
+
+        # tab2:
         self.tab_2 = QWidget()
+        self.text = QPlainTextEdit()  # add a text field there
+        self.button_save = QPushButton("Save") # add a button - save to file
+        self.button_save.clicked.connect(self.save_text)
+
+        self.button_clear = QPushButton("Clear") # add a button - clear the notepad
+        self.button_clear.clicked.connect(self.clear_notepad)
+
+        tab_2_layout = QHBoxLayout(self.tab_2)
+        tab_2_layout.addWidget(self.text)
+        tab_2_layout.addWidget(self.button_save)
+        tab_2_layout.addWidget(self.button_clear)
+
+        # tab3:
         self.tab_3 = QWidget()
-        self.tab_4 = QWidget()
+        self.label_A = QLabel("Field A:")
+        self.text_A = QLineEdit()
+        self.text_A.textChanged.connect(self.change_ABC)
+
+        self.label_B = QLabel("Field B:")
+        self.text_B = QLineEdit()
+        self.text_B.textChanged.connect(self.change_ABC)
+
+        self.label_C = QLabel("Field C:")
+        self.number_C = QSpinBox()
+        self.number_C.textChanged.connect(self.change_ABC)
+
+        self.label_ABC = QLabel("Field A+B+C:")
+        self.number_ABC = QLineEdit()
+        self.change_ABC()
+
+        tab_3_layout = QGridLayout(self.tab_3)
+        tab_3_layout.addWidget(self.label_A, 0, 0)
+        tab_3_layout.addWidget(self.text_A, 0, 1)
+
+        tab_3_layout.addWidget(self.label_B, 1, 0)
+        tab_3_layout.addWidget(self.text_B, 1, 1)
+
+        tab_3_layout.addWidget(self.label_C, 2, 0)
+        tab_3_layout.addWidget(self.number_C, 2, 1) 
+
+        tab_3_layout.addWidget(self.label_ABC, 3, 0)
+        tab_3_layout.addWidget(self.number_ABC, 3, 1)         
+        layout = QGridLayout(self)
 
         # adding tabs to widgets
-        self.all_tabs.addTab(self.tab_1, "1")
-        self.all_tabs.addTab(self.tab_2, "2")
-        self.all_tabs.addTab(self.tab_3, "3")
-        self.all_tabs.addTab(self.tab_4, "4")
+        self.all_tabs.addTab(self.tab_1, "Image viewer")
+        self.all_tabs.addTab(self.tab_2, "Notepad")
+        self.all_tabs.addTab(self.tab_3, "field adder")
 
-        # Dodanie widżetu do głównego okna jako centralny widżet
+        # Adding widget to window as a central widget
         self.setCentralWidget(self.all_tabs)
-        self.setLayout(layout)
+        # self.setLayout(layout)
 
 
 # Uruchomienie okna
