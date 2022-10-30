@@ -1,33 +1,64 @@
-import sys
-import subprocess
-# import yt_dlp
-URLS = ['https://www.youtube.com/watch?v=89aKm-7WwLQ&ab_channel=TheBraveryVEVO',
-        'https://www.youtube.com/watch?v=Wq4tyDRhU_4&ab_channel=Editors']
-chosen_name_1 = "-o"
-chosen_name_2 = "%(title)s.%(ext)s"
-chosen_format_1 = "-x"
-chosen_format_2 = "--audio-format"
-chosen_format_3 = "mp3"
-where_1 = "--ffmpeg-location"
-where_2 = "./bin/ffmpeg.exe"
-for i in range(len(URLS)):
-    subprocess.run(['yt-dlp.exe', chosen_name_1, chosen_name_2, URLS[i],
-                chosen_format_1, chosen_format_2, chosen_format_3, where_1, where_2], check=True)
-# subprocess.run([sys.executable, './bin/ffprobe.exe'], check=True)
-# subprocess.run([sys.executable, './bin/ffmpeg.exe'], check=True)
+import threading
+
+from gui import events, create_window, INSERT
+from download import download_urls, abort_downloads
+
+window = create_window()
+mline = window['urls']
 
 
-ydl_opts = {
-    'format': 'm4a/bestaudio/best',
-    # ℹ️ See help(yt_dlp.postprocessor) for a list of available Postprocessors and their arguments
-    'postprocessors': [{  # Extract audio using ffmpeg
-        'key': 'FFmpegExtractAudio',
-        'preferredcodec': 'm4a',
-    }]
-}
+# Create an event loop
+while True:
+    event, values = window.read()
+    # End program if user closes window or
+    # presses the OK button
+    if event == "OK" or event == events['window_closed']:
+        break
 
-#with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-#    error_code = ydl.download(URLS)
+    if event == 'download':
+        window['logs'].update('')
 
-# print('Some videos failed to download' if error_code
-#       else 'All videos successfully downloaded')
+        threading.Thread(
+            name='threadzix',
+            target=download_urls,
+            args=(values['urls'].splitlines(), values['download-path'], lambda text: window['logs'].update(values['logs'] + '\n' + text)),
+            daemon=True
+        ).start()
+
+        window['download'].update(disabled=True)
+        window['stop'].update(disabled=False)
+
+    if event == 'clear':
+        window['urls'].update('')
+        window['logs'].update('')
+        window['download'].update(disabled=False)
+        window['stop'].update(disabled=True)
+
+    if event == 'stop':
+        abort_downloads()
+        window['download'].update(disabled=False)
+        window['stop'].update(disabled=True)
+
+    if event == 'Select All':
+        mline.Widget.selection_clear()
+        mline.Widget.tag_add('sel', '1.0', 'end')
+    elif event == 'Copy':
+        try:
+            text = mline.Widget.selection_get()
+            window.TKroot.clipboard_clear()
+            window.TKroot.clipboard_append(text)
+        except:
+            print('Nothing selected')
+    elif event == 'Paste':
+        mline.Widget.insert(INSERT, window.TKroot.clipboard_get())
+    elif event == 'Cut':
+        try:
+            text = mline.Widget.selection_get()
+            window.TKroot.clipboard_clear()
+            window.TKroot.clipboard_append(text)
+            mline.update('')
+        except:
+            print('Nothing selected')
+
+
+window.close()
